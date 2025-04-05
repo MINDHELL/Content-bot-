@@ -331,11 +331,11 @@ async def close_disclaimer_callback(client, callback_query: CallbackQuery):
 async def about_command(client, message):
     await message.reply_text(
         text=(
-            f"<b>○ Creator : <a href='https://t.me/Xsupprt3bot>This Person</a>\n"
+            f"<b>○ Creator : <a href='https://t.me/Xsupprt3bot'>This Person</a>\n"
             f"○ Language : <code>Python3</code>\n"
-            f"○ Library : <a href='https://docs.pyrogram.org/'>Pyrogram asyncio </a>\n"
-            f"○ Source Code : <a href='https://t.me/Xsupprt3bot>Click here</a>\n"
-            f"○ Channel : @Allvidsbackup3 \n"
+            f"○ Library : <a href='https://docs.pyrogram.org/'>Pyrogram asyncio</a>\n"
+            f"○ Source Code : <a href='https://t.me/Xsupprt3bot'>Click here </a>\n"
+            f"○ Channel : @Allvidsbackup3\n"
             f"○ Support Group : @Xsupport_chats</b>"
         ),
         disable_web_page_preview=True,
