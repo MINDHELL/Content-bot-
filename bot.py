@@ -29,7 +29,7 @@ DEFAULT_QUOTA_RESET_TIME = int(os.getenv("DEFAULT_QUOTA_RESET_TIME", "86400"))  
 
 # ✅ Force Subscribe Setup
 id_pattern = re.compile(r'^.\d+$')
-AUTH_CHANNEL = [int(ch) if id_pattern.search(ch) else ch for ch in os.getenv("AUTH_CHANNEL", "-1002490575006").split()]
+AUTH_CHANNEL = [int(ch) if id_pattern.search(ch) else ch for ch in os.getenv("AUTH_CHANNEL", "-1002546714412").split()]
 
 # 🔰 Initialize Bot & Database
 bot = Client("video_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -315,7 +315,8 @@ async def disclaimer_message(client, message):
         "2. We do not host or promote any copyrighted content.\n"
         "3. All media is shared from publicly available sources.\n"
         "4. Users are responsible for the content they access.\n"
-        "5. We reserve the right to block users for misuse or abuse.\n\n"
+        "5. We reserve the right to block users for misuse or abuse.\n"
+        "6. FOR ANY ISSUE DM OWNER @XSUPPRT3BOT.\n\n" 
         "By using this bot, you agree to these terms.",
         reply_markup=keyboard
     )
@@ -330,12 +331,12 @@ async def close_disclaimer_callback(client, callback_query: CallbackQuery):
 async def about_command(client, message):
     await message.reply_text(
         text=(
-            f"<b>○ Creator : <a href='tg://user?id={OWNER_ID}'>This Person</a>\n"
+            f"<b>○ Creator : <a href='https://t.me/Xsupprt3bot>This Person</a>\n"
             f"○ Language : <code>Python3</code>\n"
             f"○ Library : <a href='https://docs.pyrogram.org/'>Pyrogram asyncio </a>\n"
-            f"○ Source Code : <a href='https://github.com/CodeXBotz/File-Sharing-Bot'>Click here</a>\n"
-            f"○ Channel : @CodeXBotz\n"
-            f"○ Support Group : @CodeXBotzSupport</b>"
+            f"○ Source Code : <a href='https://t.me/Xsupprt3bot>Click here</a>\n"
+            f"○ Channel : @Allvidsbackup3 \n"
+            f"○ Support Group : @Xsupport_chats</b>"
         ),
         disable_web_page_preview=True,
         reply_markup=InlineKeyboardMarkup([
