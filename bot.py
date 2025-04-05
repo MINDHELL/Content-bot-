@@ -20,7 +20,7 @@ API_ID = int(os.getenv("API_ID", "27083483"))
 API_HASH = os.getenv("API_HASH", "1ba790464745c13ce149649d73137e52")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7307399049:AAFXnD-gVXAUi4NlyVWk45FwN-g-JONskGE")
 MONGO_URL = os.getenv("MONGO_URL", "mongodb+srv://aarshhub:6L1PAPikOnAIHIRA@cluster0.6shiu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
-CHANNEL_ID = int(os.getenv("CHANNEL_ID", "-1002465297334"))
+CHANNEL_ID = int(os.getenv("CHANNEL_ID", "-1002661126109"))
 OWNER_ID = int(os.getenv("OWNER_ID", "7246766108"))
 WELCOME_IMAGE = os.getenv("WELCOME_IMAGE", "https://envs.sh/n9o.jpg")
 AUTO_DELETE_TIME = int(os.getenv("AUTO_DELETE_TIME", "7200"))
@@ -34,10 +34,10 @@ AUTH_CHANNEL = [int(ch) if id_pattern.search(ch) else ch for ch in os.getenv("AU
 # 🔰 Initialize Bot & Database
 bot = Client("video_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 mongo = MongoClient(MONGO_URL)
-db = mongo["VideoBot"]
-collection = db["videos"]
-users_collection = db["users"]
-settings_collection = db["settings"]
+db = mongo["VideoBot1"]
+collection = db["videos1"]
+users_collection = db["users1"]
+settings_collection = db["settings1"]
 
 # ✅ **Cache Optimization**
 video_cache = []
