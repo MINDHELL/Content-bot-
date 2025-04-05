@@ -180,7 +180,7 @@ async def send_random_video(client, chat_id):
         message = await client.get_messages(CHANNEL_ID, video["message_id"])
         if message and message.video:
             sent_msg = await client.send_video(
-                chat_id, video=message.video.file_id, caption="Thanks 😊", protect_content=is_protection_enabled()
+                chat_id, video=message.video.file_id, caption="Thanks 😊", protect_content=True
             )
 
             if chat_id != OWNER_ID:  # Only update quota for non-owner users
