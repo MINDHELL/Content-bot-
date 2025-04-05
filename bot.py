@@ -53,7 +53,7 @@ async def refresh_video_cache():
 # ✅ **Fetch Protection Setting**
 def is_protection_enabled():
     setting = settings_collection.find_one({"_id": "content_protection"})
-    return setting and setting.get("enabled", False)
+    return setting and setting.get("enabled", True)
 
 # ✅ **User Management**
 async def add_user(user_id):
