@@ -10,6 +10,9 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pymongo import MongoClient
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
 from health_check import start_health_check
+from pyrogram import Client, filters
+from verification import check_verification, get_token, check_token, verify_user
+from info import VERIFY, BOT_USERNAME, VERIFY_TUTORIAL
 
 # 🔰 Logging Setup
 logging.basicConfig(level=logging.INFO)
@@ -149,6 +152,26 @@ async def start(client, message):
         except Exception:
             pass
 
+    # Check if user is verified
+    if not await check_verification(client, user_id):
+        # If not verified, send verification instructions
+        verification_url = await get_token(client, user_id, "https://telegram.me/{BOT_USERNAME}?start=")
+        
+        btn = [
+            [InlineKeyboardButton("Verify", url=verification_url)],
+            [InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)]
+        ]
+        
+        await message.reply_text(
+            text="<b>You are not verified! Kindly verify to continue.</b>",
+            reply_markup=InlineKeyboardMarkup(btn),
+            protect_content=True
+        )
+        return
+
+    # If verified, proceed with bot's main functionality
+    await message.reply_text("Welcome! You are verified and can use the bot.")
+
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🎥 Get Random Video", callback_data="get_random_video")]])
     await message.reply_photo(WELCOME_IMAGE, caption="🎉 Welcome to the Video Bot!\n\n<b>𝖳𝗁𝗂𝗌 𝖡𝗈𝗍 𝖢𝗈𝗇𝗍𝖺𝗂𝗇𝗌 18+ 𝖢𝗈𝗇𝗍𝖾𝗇𝗍 𝖲𝗈 𝖪𝗂𝗇𝖽𝗅𝗒 𝖠𝖼𝖼𝖾𝗌𝗌 𝖨𝗍 𝖶𝗂𝗍𝗁 𝖸𝗈𝗎𝗋 𝖮𝗐𝗇 𝖱𝗂𝗌𝗄. 𝖳𝗁𝖾 𝖬𝖺𝗍𝖾𝗋𝗂𝖺𝗅 𝖬𝖺𝗒 𝖨𝗇𝖼𝗅𝗎𝖽𝖾 𝖤𝗑𝗉𝗅𝗂𝖼𝗂𝗍 𝖮𝗋 𝖦𝗋𝖺𝗉𝗁𝗂𝖼 𝖢𝗈𝗇𝗍𝖺𝖼𝗍 𝖳𝗁𝖺𝗍 𝖨𝗌 𝖴𝗇𝗌𝗎𝗂𝗍𝖺𝖻𝗅𝖾 𝖥𝗈𝗋 𝖬𝗂𝗇𝗈𝗋𝗌. 𝖲𝗈 𝖢𝗁𝗂𝗅𝖽𝗋𝖾𝗇𝗌 𝖯𝗅𝖾𝖺𝗌𝖾 𝖲𝗍𝖺𝗒 𝖠𝗐𝖺𝗒.</b>\n\n 𝖯𝗅𝖾𝖺𝗌𝖾 𝖢𝗁𝖾𝖼𝗄 Disclaimer and About 𝖡𝖾𝖿𝗈𝗋𝖾 𝖴𝗌𝗂𝗇𝗀 𝖳𝗁𝗂𝗌 𝖡𝗈𝗍..\n\n ", reply_markup=keyboard)
 
@@ -193,6 +216,33 @@ async def send_random_video(client, chat_id):
     except FloodWait as e:
         await asyncio.sleep(e.value)
         await send_random_video(client, chat_id)
+
+@Client.on_message(filters.regex("verify"))
+async def verify(client, message):
+    # Extract user ID and token from the message
+    data = message.command[1]
+    userid = data.split("-", 2)[1]
+    token = data.split("-", 3)[2]
+
+    if str(message.from_user.id) != str(userid):
+        return await message.reply_text(
+            text="<b>Invalid link or expired link!</b>",
+            protect_content=True
+        )
+
+    # Check token validity
+    is_valid = await check_token(client, userid, token)
+    if is_valid:
+        await verify_user(client, userid, token)
+        await message.reply_text(
+            text=f"<b>Hey {message.from_user.mention}, You are successfully verified!</b>",
+            protect_content=True
+        )
+    else:
+        return await message.reply_text(
+            text="<b>Invalid link or expired link!</b>",
+            protect_content=True
+        )
 
 
 @bot.on_callback_query(filters.regex("get_random_video"))
