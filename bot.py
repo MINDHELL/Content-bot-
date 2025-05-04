@@ -155,7 +155,7 @@ async def start(client, message):
     # Check if user is verified
     if not await check_verification(client, user_id):
         # If not verified, send verification instructions
-        verification_url = await get_token(client, user_id, "https://telegram.me/{BOT_USERNAME}?start=")
+        verification_url = await get_token(client, user_id, f"https://telegram.me/{BOT_USERNAME}?start=")
         
         btn = [
             [InlineKeyboardButton("Verify", url=verification_url)],
