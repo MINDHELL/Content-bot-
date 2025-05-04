@@ -1,4 +1,4 @@
-1. commands.py
+# 1. commands.py
 
 from utils import verify_user, check_token
 
