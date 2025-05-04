@@ -36,6 +36,10 @@ async def verify_user(userid, token):
         return True
     return False
 
+def check_verification(user_id):
+    user = users_collection.find_one({"user_id": user_id})
+    return user and user.get("verified", False)
+
 async def is_verified(userid):
     today = str(date.today())
     return VERIFIED.get(userid) == today
