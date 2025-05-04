@@ -10,7 +10,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pymongo import MongoClient
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
 from health_check import start_health_check
-from verification import check_verification, get_token, check_token, verify_user
+from verification import check_verification, get_token, check_token, verify_user, BONUS_QUOTA 
 
 # 🔰 Logging Setup
 logging.basicConfig(level=logging.INFO)
