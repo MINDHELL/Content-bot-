@@ -10,6 +10,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pymongo import MongoClient
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
 from health_check import start_health_check
+from verification import check_verification, get_token, check_token, verify_user
 
 # 🔰 Logging Setup
 logging.basicConfig(level=logging.INFO)
@@ -132,6 +133,26 @@ async def start(client, message):
     user_id = message.from_user.id
     await add_user(user_id)
 
+    # Check if user has exhausted their quota and is not yet verified
+    from info import VERIFY, BOT_USERNAME, VERIFY_TUTORIAL
+    if VERIFY == "True":
+        from quota import get_user_quota
+        quota_data = await get_user_quota(user_id)
+        if quota_data['used'] >= quota_data['total']:
+            from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+            if not await check_verification(client, user_id):
+                verify_url = await get_token(client, user_id, f"https://t.me/{BOT_USERNAME}?start=")
+                buttons = [
+                    [InlineKeyboardButton("✅ Verify Now", url=verify_url)],
+                    [InlineKeyboardButton("How to Verify?", url=VERIFY_TUTORIAL)]
+                ]
+                await message.reply_text(
+                    "<b>Your free video limit for today is over.\nVerify yourself to get 30 extra videos valid till midnight.</b>",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                    protect_content=True
+                )
+                return
+
     if AUTH_CHANNEL:
         try:
             btn = []
@@ -148,6 +169,68 @@ async def start(client, message):
             return
         except Exception:
             pass
+
+    # Check if the user is verified or not, and provide verification link if needed
+    if not await check_verification(client, user_id):
+        verification_link = await get_token(client, user_id, f"https://t.me/{client.me.username}?start=")
+        btn = [[
+            InlineKeyboardButton("Verify", url=verification_link)
+        ], [
+            InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
+        ]]
+        await message.reply_text(
+            text="<b>You are not verified !\nKindly verify to continue !</b>",
+            protect_content=True,
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
+        return
+
+    # If verified, proceed with further logic
+    # (this part can be expanded as per your need)
+    await message.reply_text(f"Hello {message.from_user.mention}, you're verified and can use the bot!")
+
+# Function to handle verification when the user clicks the verification link
+async def verify_user(client, userid, token):
+    """Handle user verification."""
+
+    if token_is_valid(userid, token):  # Check if the token is valid
+        today = date.today()
+
+        # Mark the user as verified
+        VERIFIED_USERS[userid] = {
+            'verified': True,
+            'expiry_date': today
+        }
+
+        # Add 30 bonus videos for today
+        await add_bonus_quota(userid, BONUS_QUOTA)
+        
+        # Send success message to the user
+        await client.send_message(
+            chat_id=userid, 
+            text=f"<b>Congratulations {message.from_user.mention}! You've been verified and granted 30 additional videos for today.</b>",
+            protect_content=True
+        )
+    else:
+        # Send failure message to the user if token is invalid
+        await client.send_message(
+            chat_id=userid,
+            text="<b>Invalid or expired verification link. Please try again.</b>",
+            protect_content=True
+        )
+
+# Function to check if the token is valid
+async def token_is_valid(userid, token):
+    """Validate token for the user."""
+    if userid in TOKENS and token in TOKENS[userid] and not TOKENS[userid][token]:
+        return True
+    return False
+
+# Add bonus quota to the user
+async def add_bonus_quota(userid, bonus_quota):
+    """Add bonus quota to the user for the day."""
+    # Implement the logic to add bonus quota (You can manage this in your database or tracking system)
+    pass
 
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🎥 Get Random Video", callback_data="get_random_video")]])
     await message.reply_photo(WELCOME_IMAGE, caption="🎉 Welcome to the Video Bot!\n\n<b>𝖳𝗁𝗂𝗌 𝖡𝗈𝗍 𝖢𝗈𝗇𝗍𝖺𝗂𝗇𝗌 18+ 𝖢𝗈𝗇𝗍𝖾𝗇𝗍 𝖲𝗈 𝖪𝗂𝗇𝖽𝗅𝗒 𝖠𝖼𝖼𝖾𝗌𝗌 𝖨𝗍 𝖶𝗂𝗍𝗁 𝖸𝗈𝗎𝗋 𝖮𝗐𝗇 𝖱𝗂𝗌𝗄. 𝖳𝗁𝖾 𝖬𝖺𝗍𝖾𝗋𝗂𝖺𝗅 𝖬𝖺𝗒 𝖨𝗇𝖼𝗅𝗎𝖽𝖾 𝖤𝗑𝗉𝗅𝗂𝖼𝗂𝗍 𝖮𝗋 𝖦𝗋𝖺𝗉𝗁𝗂𝖼 𝖢𝗈𝗇𝗍𝖺𝖼𝗍 𝖳𝗁𝖺𝗍 𝖨𝗌 𝖴𝗇𝗌𝗎𝗂𝗍𝖺𝖻𝗅𝖾 𝖥𝗈𝗋 𝖬𝗂𝗇𝗈𝗋𝗌. 𝖲𝗈 𝖢𝗁𝗂𝗅𝖽𝗋𝖾𝗇𝗌 𝖯𝗅𝖾𝖺𝗌𝖾 𝖲𝗍𝖺𝗒 𝖠𝗐𝖺𝗒.</b>\n\n 𝖯𝗅𝖾𝖺𝗌𝖾 𝖢𝗁𝖾𝖼𝗄 Disclaimer and About 𝖡𝖾𝖿𝗈𝗋𝖾 𝖴𝗌𝗂𝗇𝗀 𝖳𝗁𝗂𝗌 𝖡𝗈𝗍..\n\n ", reply_markup=keyboard)
