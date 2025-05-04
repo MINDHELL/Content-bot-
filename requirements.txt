@@ -3,3 +3,5 @@ tgcrypto
 motor
 pymongo
 flask
+shortzy
+pytz
