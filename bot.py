@@ -132,8 +132,8 @@ async def broadcast(client, message):
 # ✅ **Start Command**
 @bot.on_message(filters.command("start"))
 async def start(client, message):
-       user_id = message.from_user.id
-       await add_user(user_id)
+    user_id = message.from_user.id
+    await add_user(user_id)
 
     # Handle forced channel join
     if AUTH_CHANNEL:
@@ -152,6 +152,7 @@ async def start(client, message):
             return
         except Exception:
             pass  # silently skip other errors (e.g., kicked/banned)
+  # silently skip other errors (e.g., kicked/banned)
 
     # Handle verification link
     if len(message.command) > 1:
