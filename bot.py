@@ -131,7 +131,7 @@ async def broadcast(client, message):
 
 # ✅ **Start Command**
  @bot.on_message(filters.command("start"))
-   async def start(client, message):
+ async def start(client, message):
        user_id = message.from_user.id
        await add_user(user_id)
 
