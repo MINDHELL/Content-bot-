@@ -13,43 +13,46 @@ async def get_verify_shorted_link(link):
 
 async def check_token(bot, userid, token):
     user = await bot.get_users(userid)
-    if user.id in TOKENS.keys():
-        TKN = TOKENS[user.id]
-        if token in TKN.keys():
-            is_used = TKN[token]
-            if is_used == True:
-                return False
+    if user.id in TOKENS:
+        # Check if the user has any tokens and if the token exists for that user
+        user_tokens = TOKENS[user.id]
+        if token in user_tokens:
+            is_used = user_tokens[token]
+            if is_used:
+                return False  # Token has been used already
             else:
-                return True
-    else:
-        return False
+                return True  # Token is valid (unused)
+    return False  # No token found for the user
 
 async def get_token(bot, userid, link):
     user = await bot.get_users(userid)
+    # Generate a new unique token
     token = ''.join(random.choices(string.ascii_letters + string.digits, k=7))
-    TOKENS[user.id] = {token: False}
+    if user.id not in TOKENS:
+        TOKENS[user.id] = {}
+    TOKENS[user.id][token] = False  # Add the token to the user's token dictionary with False (not used)
     link = f"{link}verify-{user.id}-{token}"
     shortened_verify_url = await get_verify_shorted_link(link)
     return str(shortened_verify_url)
 
 async def verify_user(bot, userid, token):
     user = await bot.get_users(userid)
-    TOKENS[user.id] = {token: True}
-    tz = pytz.timezone('Asia/Kolkata')
-    today = date.today()
-    VERIFIED[user.id] = str(today)
+    # Update the token to True (used)
+    if user.id in TOKENS and token in TOKENS[user.id]:
+        TOKENS[user.id][token] = True
+        # Record verification date
+        tz = pytz.timezone('Asia/Kolkata')
+        today = date.today()
+        VERIFIED[user.id] = str(today)  # Store the verification date
 
 async def check_verification(bot, userid):
     user = await bot.get_users(userid)
-    tz = pytz.timezone('Asia/Kolkata')
     today = date.today()
-    if user.id in VERIFIED.keys():
-        EXP = VERIFIED[user.id]
-        years, month, day = EXP.split('-')
-        comp = date(int(years), int(month), int(day))
-        if comp<today:
-            return False
-        else:
-            return True
-    else:
-        return False
+    if user.id in VERIFIED:
+        exp_date = VERIFIED[user.id]
+        exp_year, exp_month, exp_day = map(int, exp_date.split('-'))
+        expiry = date(exp_year, exp_month, exp_day)
+        if expiry < today:
+            return False  # Verification has expired
+        return True  # Still valid
+    return False  # No verification record found
