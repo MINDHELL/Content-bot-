@@ -13,6 +13,7 @@ from health_check import start_health_check
 from pyrogram import Client, filters
 from verification import check_verification, get_token, check_token, verify_user
 from info import VERIFY, BOT_USERNAME, VERIFY_TUTORIAL
+from pyrogram.types import Message
 
 # 🔰 Logging Setup
 logging.basicConfig(level=logging.INFO)
