@@ -134,6 +134,23 @@ async def broadcast(client, message):
 async def start(client, message):
     user_id = message.from_user.id
 
+    # --- HANDLE VERIFICATION LINK ---
+    if len(message.command) > 1:
+        payload = message.command[1]
+        if payload.startswith("verify-"):
+            try:
+                _, uid, token = payload.split("-")
+                uid = int(uid)
+                if uid == user_id and await check_token(client, uid, token):
+                    await verify_user(client, uid, token)
+                    await message.reply_text("✅ You are now verified!")
+                else:
+                    await message.reply_text("❌ Invalid or expired verification link.")
+                return
+            except Exception as e:
+                await message.reply_text("❌ Invalid verification format.")
+                return
+
     if not await check_verification(client, user_id) and VERIFY == True:
         btn = [[
             InlineKeyboardButton("Verify", url=await get_token(client, user_id, f"https://telegram.me/{BOT_USERNAME}?start="))
