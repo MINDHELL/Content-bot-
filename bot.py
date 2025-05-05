@@ -132,27 +132,39 @@ async def start(client, message):
     user_id = message.from_user.id
     await add_user(user_id)
 
-    data = message.command[1]
-    if data.split("-", 1)[0] == "verify": # set if or elif it depend on your code
-        userid = data.split("-", 2)[1]
-        token = data.split("-", 3)[2]
-        if str(message.from_user.id) != str(userid):
-            return await message.reply_text(
-                text="<b>Invalid link or Expired link !</b>",
-                protect_content=True
-            )
-        is_valid = await check_token(client, userid, token)
-        if is_valid == True:
-            await message.reply_text(
-                text=f"<b>Hey {message.from_user.mention}, You are successfully verified !\nNow you have unlimited access for all files till today midnight.</b>",
-                protect_content=True
-            )
-            await verify_user(client, userid, token)
-        else:
-            return await message.reply_text(
-                text="<b>Invalid link or Expired link !</b>",
-                protect_content=True
-            )
+    # Check if there's a parameter with /start
+    if len(message.command) > 1:
+        data = message.command[1]
+        parts = data.split("-", 2)
+
+        if parts[0] == "verify":
+            if len(parts) < 3:
+                return await message.reply_text(
+                    text="<b>Invalid or incomplete verification link!</b>",
+                    protect_content=True
+                )
+
+            userid = parts[1]
+            token = parts[2]
+
+            if str(user_id) != str(userid):
+                return await message.reply_text(
+                    text="<b>Invalid link or expired token!</b>",
+                    protect_content=True
+                )
+
+            is_valid = await check_token(client, userid, token)
+            if is_valid:
+                await message.reply_text(
+                    text=f"<b>Hey {message.from_user.mention}, You are successfully verified!\nNow you have unlimited access until midnight today.</b>",
+                    protect_content=True
+                )
+                await verify_user(client, userid, token)
+            else:
+                return await message.reply_text(
+            text="<b>Invalid link or expired token!</b>",
+            protect_content=True
+        )
 
     if AUTH_CHANNEL:
         try:
