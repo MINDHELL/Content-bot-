@@ -129,67 +129,7 @@ async def broadcast(client, message):
 
     time_taken = datetime.timedelta(seconds=int(time.time() - start_time))
     await status_msg.edit(f"✅ **Broadcast Completed in {time_taken}!**\nTotal Users: `{total_users}`\nProcessed: `{done}`\n✅ Success: `{success}`\n❌ Failed: `{failed}`\n🚫 Deleted: `{deleted}`")
-
-# Token checking function
-async def check_token(client, userid, token):
-    record = await tokens_collection.find_one({"user_id": int(userid), "token": token})
-    return bool(record)
-
-# Token generation function
-async def generate_token(userid):
-    token = secrets.token_urlsafe(16)
-    await tokens_collection.insert_one({"user_id": int(userid), "token": token})
-    return token
-
-# Verify user function
-async def verify_user(client, userid, token):
-    await users_collection.update_one(
-        {"id": int(userid)},
-        {"$set": {"status": "verified"}},
-        upsert=True
-    )
-    await tokens_collection.delete_one({"user_id": int(userid), "token": token})
-
-
-# ✅ **Start Command**
-@bot.on_message(filters.command("start"))
-async def start(client, message):
-    user_id = message.from_user.id
-    await add_user(user_id)
-
-    if AUTH_CHANNEL:
-        try:
-            btn = []
-            for id in AUTH_CHANNEL:
-                chat = await client.get_chat(int(id))
-                await client.get_chat_member(id, user_id)
-        except UserNotParticipant:
-            btn.append([InlineKeyboardButton(f'Join {chat.title}', url=chat.invite_link)])
-            btn.append([InlineKeyboardButton("♻️ Try Again ♻️", url=f"https://t.me/{client.me.username}?start=true")])
-            await message.reply_text(
-                f"👋 **Hello {message.from_user.mention},**\n\nJoin the channel and click 'Try Again'.",
-                reply_markup=InlineKeyboardMarkup(btn),
-            )
-            return
-        except Exception:
-            pass
-
-    # Check if user is verified
-    if not await check_verification(client, user_id):
-        # If not verified, send verification instructions
-        verification_url = await get_token(client, user_id, f"https://telegram.me/{BOT_USERNAME}?start=")
-        
-        btn = [
-            [InlineKeyboardButton("Verify", url=verification_url)],
-            [InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)]
-        ]
-        
-        await message.reply_text(
-            text="<b>You are not verified! Kindly verify to continue.</b>",
-            reply_markup=InlineKeyboardMarkup(btn),
-            protect_content=True
-        )
-        return
+    
 
     # /verify command
 @Client.on_message(filters.regex("^/start verify-"))
