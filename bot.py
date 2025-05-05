@@ -130,8 +130,8 @@ async def broadcast(client, message):
     await status_msg.edit(f"✅ **Broadcast Completed in {time_taken}!**\nTotal Users: `{total_users}`\nProcessed: `{done}`\n✅ Success: `{success}`\n❌ Failed: `{failed}`\n🚫 Deleted: `{deleted}`")
 
 # ✅ **Start Command**
- @bot.on_message(filters.command("start"))
- async def start(client, message):
+@bot.on_message(filters.command("start"))
+async def start(client, message):
        user_id = message.from_user.id
        await add_user(user_id)
 
