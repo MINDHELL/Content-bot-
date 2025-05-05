@@ -144,31 +144,12 @@ async def generate_token(userid):
 # Verify user function
 async def verify_user(client, userid, token):
     await users_collection.update_one(
-        {"user_id": int(userid)},
+        {"id": int(userid)},
         {"$set": {"status": "verified"}},
         upsert=True
     )
     await tokens_collection.delete_one({"user_id": int(userid), "token": token})
 
-# Token checking function
-async def check_token(client, userid, token):
-    record = await tokens_collection.find_one({"user_id": int(userid), "token": token})
-    return bool(record)
-
-# Token generation function
-async def generate_token(userid):
-    token = secrets.token_urlsafe(16)
-    await tokens_collection.insert_one({"user_id": int(userid), "token": token})
-    return token
-
-# Verify user function
-async def verify_user(client, userid, token):
-    await users_collection.update_one(
-        {"user_id": int(userid)},
-        {"$set": {"status": "verified"}},
-        upsert=True
-    )
-    await tokens_collection.delete_one({"user_id": int(userid), "token": token})
 
 # ✅ **Start Command**
 @bot.on_message(filters.command("start"))
