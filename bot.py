@@ -129,6 +129,46 @@ async def broadcast(client, message):
     time_taken = datetime.timedelta(seconds=int(time.time() - start_time))
     await status_msg.edit(f"✅ **Broadcast Completed in {time_taken}!**\nTotal Users: `{total_users}`\nProcessed: `{done}`\n✅ Success: `{success}`\n❌ Failed: `{failed}`\n🚫 Deleted: `{deleted}`")
 
+# Token checking function
+async def check_token(client, userid, token):
+    record = await tokens_collection.find_one({"user_id": int(userid), "token": token})
+    return bool(record)
+
+# Token generation function
+async def generate_token(userid):
+    token = secrets.token_urlsafe(16)
+    await tokens_collection.insert_one({"user_id": int(userid), "token": token})
+    return token
+
+# Verify user function
+async def verify_user(client, userid, token):
+    await users_collection.update_one(
+        {"user_id": int(userid)},
+        {"$set": {"status": "verified"}},
+        upsert=True
+    )
+    await tokens_collection.delete_one({"user_id": int(userid), "token": token})
+
+# Token checking function
+async def check_token(client, userid, token):
+    record = await tokens_collection.find_one({"user_id": int(userid), "token": token})
+    return bool(record)
+
+# Token generation function
+async def generate_token(userid):
+    token = secrets.token_urlsafe(16)
+    await tokens_collection.insert_one({"user_id": int(userid), "token": token})
+    return token
+
+# Verify user function
+async def verify_user(client, userid, token):
+    await users_collection.update_one(
+        {"user_id": int(userid)},
+        {"$set": {"status": "verified"}},
+        upsert=True
+    )
+    await tokens_collection.delete_one({"user_id": int(userid), "token": token})
+
 # ✅ **Start Command**
 @bot.on_message(filters.command("start"))
 async def start(client, message):
@@ -168,6 +208,29 @@ async def start(client, message):
             protect_content=True
         )
         return
+
+    # /verify command
+@Client.on_message(filters.regex("^/start verify-"))
+async def verify(client, message: Message):
+    try:
+        data = message.text.split(" ", 1)[1]
+        userid = data.split("-", 2)[1]
+        token = data.split("-", 3)[2]
+    except IndexError:
+        return await message.reply_text("<b>Invalid or malformed verification link.</b>", protect_content=True)
+
+    if str(message.from_user.id) != str(userid):
+        return await message.reply_text("<b>Invalid link or expired link!</b>", protect_content=True)
+
+    is_valid = await check_token(client, userid, token)
+    if is_valid:
+        await verify_user(client, userid, token)
+        await message.reply_text(
+            text=f"<b>Hey {message.from_user.mention}, You are successfully verified!</b>",
+            protect_content=True
+        )
+    else:
+        await message.reply_text("<b>Invalid link or expired link!</b>", protect_content=True)
 
     # If verified, proceed with bot's main functionality
     await message.reply_text("Welcome! You are verified and can use the bot.")
@@ -217,32 +280,6 @@ async def send_random_video(client, chat_id):
         await asyncio.sleep(e.value)
         await send_random_video(client, chat_id)
 
-@Client.on_message(filters.regex("verify"))
-async def verify(client, message):
-    # Extract user ID and token from the message
-    data = message.command[1]
-    userid = data.split("-", 2)[1]
-    token = data.split("-", 3)[2]
-
-    if str(message.from_user.id) != str(userid):
-        return await message.reply_text(
-            text="<b>Invalid link or expired link!</b>",
-            protect_content=True
-        )
-
-    # Check token validity
-    is_valid = await check_token(client, userid, token)
-    if is_valid:
-        await verify_user(client, userid, token)
-        await message.reply_text(
-            text=f"<b>Hey {message.from_user.mention}, You are successfully verified!</b>",
-            protect_content=True
-        )
-    else:
-        return await message.reply_text(
-            text="<b>Invalid link or expired link!</b>",
-            protect_content=True
-        )
 
 
 @bot.on_callback_query(filters.regex("get_random_video"))
