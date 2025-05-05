@@ -10,6 +10,9 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pymongo import MongoClient
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
 from health_check import start_health_check
+from utils import verify_user, check_token
+from utils import check_verification, get_token
+from info import VERIFY, VERIFY_TUTORIAL, BOT_USERNAME
 
 # 🔰 Logging Setup
 logging.basicConfig(level=logging.INFO)
@@ -131,16 +134,31 @@ async def broadcast(client, message):
 async def start(client, message):
     user_id = message.from_user.id
     await add_user(user_id)
+    
+    if len(message.command) > 1:
+        data = message.command[1]
+        if data.split("-", 1)[0] == "verify":
+            userid = data.split("-", 2)[1]
+            token = data.split("-", 3)[2]
+            if str(message.from_user.id) != str(userid):
+                return await message.reply_text(
+                    text="<b>Invalid or expired link!</b>",
+                    protect_content=True
+                )
+            is_valid = await check_token(client, userid, token)
+            if is_valid:
+                await verify_user(client, userid, token)
+                return await message.reply_text(
+                    text=f"<b>Hey {message.from_user.mention}, You are successfully verified!</b>",
+                    protect_content=True
+                )
+            else:
+                return await message.reply_text(
+                    text="<b>Invalid or expired link!</b>",
+                    protect_content=True
+                )
 
-  data = message.command[1]
-    if data.split("-", 1)[0] == "verify": # set if or elif it depend on your code
-        userid = data.split("-", 2)[1]
-        token = data.split("-", 3)[2]
-        if str(message.from_user.id) != str(userid):
-            return await message.reply_text(
-                text="<b>Invalid link or Expired link !</b>",
-                protect_content=True
-            )
+    # Continue with your channel check and other logic here
         is_valid = await check_token(client, userid, token)
         if is_valid == True:
             await message.reply_text(
