@@ -127,7 +127,7 @@ async def add_user(user_id):
             "videos_sent": 0,  # Initialize videos_sent field
             "bonus_quota_used": 0,  # Initialize bonus quota used
             "quota_reset_time": time.time() + DEFAULT_QUOTA_RESET_TIME,  # Set the reset time for quota
-            "premium_expiry": None  # Default: no premium
+            "premium_expiry": 0  # Default: no premium
         })
     else:
         # Ensure "videos_sent", "bonus_quota_used", "quota_reset_time", and "premium_expiry" exist
@@ -138,7 +138,7 @@ async def add_user(user_id):
         if "quota_reset_time" not in user:
             users_collection.update_one({"id": user_id}, {"$set": {"quota_reset_time": time.time() + DEFAULT_QUOTA_RESET_TIME}})
         if "premium_expiry" not in user:
-            users_collection.update_one({"id": user_id}, {"$set": {"premium_expiry": None}})
+            users_collection.update_one({"id": user_id}, {"$set": {"premium_expiry": 0}})
 
 # ✅ **Premium Features**
 async def is_premium(user_id):
