@@ -383,14 +383,17 @@ async def send_random_video(client, chat_id):
     allow_regular = videos_sent < VIDEO_LIMIT
     allow_bonus = is_premium and bonus_used < BONUS_QUOTA_LIMIT
 
-    if not allow_regular and not allow_bonus:
-        reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
-        await client.send_message(
-            chat_id,
-            f"⚠️ You have reached your quota. Your limit will reset at {reset_str}."
-        )
-        return
+    if not allow_regular and allow_bonus:
+        pass
 
+        if not allow_regular and not allow_bonus:
+            reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
+            await client.send_message(
+                chat_id,
+                f"⚠️ You have reached your quota. Your limit will reset at {reset_str}."
+            )
+            return
+            
     # Send video
     video = video_cache.pop()
     try:
