@@ -10,6 +10,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pymongo import MongoClient
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
 from health_check import start_health_check
+from normalize_users import normalize_all_users
 
 # 🔰 Logging Setup
 logging.basicConfig(level=logging.INFO)
@@ -110,6 +111,11 @@ async def refresh_video_cache():
     if time.time() - last_cache_time > CACHE_EXPIRY:
         video_cache = list(collection.aggregate([{"$sample": {"size": 500}}]))  
         last_cache_time = time.time()
+
+@bot.on_message(filters.command("normalize_users") & filters.user(OWNER_ID))
+async def normalize_users_command(client, message):
+    updated_count = normalize_all_users()
+    await message.reply_text(f"✅ Normalized user data for {updated_count} user(s).")
 
 # ✅ **Fetch Protection Setting**
 def is_protection_enabled():
