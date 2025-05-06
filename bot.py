@@ -283,21 +283,33 @@ async def send_random_video(client, chat_id):
         await client.send_message(chat_id, "⚠ No videos available. Use /index first!")
         return
 
-    # Check if user is the owner (unlimited quota)
+    # Fetch user data
     if chat_id == OWNER_ID:
-        user = {"videos_sent": 0, "quota_reset_time": time.time()}
+        user = {"videos_sent": 0, "quota_reset_time": time.time(), "bonus_quota_used": 0, "premium_expiry": time.time() + 86400}
     else:
         user = users_collection.find_one({"id": chat_id})
 
-    if user["videos_sent"] >= VIDEO_LIMIT and time.time() < user["quota_reset_time"]:
-        reset_time = datetime.datetime.fromtimestamp(user["quota_reset_time"]).strftime("%Y-%m-%d %H:%M:%S")
-        await client.send_message(
-            chat_id,
-            f"⚠️ You have reached your video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_time}.",
-        )
+    if not user:
+        await client.send_message(chat_id, "⚠ User not found. Please start the bot first.")
         return
 
-# Check if bonus quota is available for premium users
+    # Check if user has exceeded regular video limit
+    if user["videos_sent"] >= VIDEO_LIMIT and time.time() < user["quota_reset_time"]:
+        reset_time = datetime.datetime.fromtimestamp(user["quota_reset_time"]).strftime("%Y-%m-%d %H:%M:%S")
+        # Notify the user that their regular video quota is full but they can still use bonus videos
+        if user.get("premium_expiry", 0) > time.time():  # Check if the user is premium
+            await client.send_message(
+                chat_id,
+                f"⚠️ You have reached your regular video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_time}. However, you still have {BONUS_QUOTA_LIMIT - user['bonus_quota_used']} bonus videos left!",
+            )
+        else:
+            await client.send_message(
+                chat_id,
+                f"⚠️ You have reached your video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_time}.",
+            )
+        return
+
+    # Check if bonus quota is available for premium users
     bonus_quota_used = user.get("bonus_quota_used", 0)
     bonus_quota_available = BONUS_QUOTA_LIMIT - bonus_quota_used
 
@@ -308,6 +320,7 @@ async def send_random_video(client, chat_id):
         )
         return
 
+    # Proceed with sending a random video
     video = video_cache.pop()
     try:
         message = await client.get_messages(CHANNEL_ID, video["message_id"])
@@ -317,7 +330,7 @@ async def send_random_video(client, chat_id):
             )
 
             if chat_id != OWNER_ID:  # Only update quota for non-owner users
-                users_collection.update_one({"id": chat_id}, {"$inc": {"videos_sent": 1}})
+                users_collection.update_one({"id": chat_id}, {"$inc": {"videos_sent": 1, "bonus_quota_used": 1}})
 
             if AUTO_DELETE_TIME > 0:
                 await asyncio.sleep(AUTO_DELETE_TIME)
@@ -326,12 +339,6 @@ async def send_random_video(client, chat_id):
     except FloodWait as e:
         await asyncio.sleep(e.value)
         await send_random_video(client, chat_id)
-
-
-@bot.on_callback_query(filters.regex("get_random_video"))
-async def random_video_callback(client, callback_query: CallbackQuery):
-    await callback_query.answer()
-    asyncio.create_task(send_random_video(client, callback_query.message.chat.id))
 
 
 # ✅ **Quota Status**
