@@ -297,6 +297,17 @@ async def send_random_video(client, chat_id):
         )
         return
 
+# Check if bonus quota is available for premium users
+    bonus_quota_used = user.get("bonus_quota_used", 0)
+    bonus_quota_available = BONUS_QUOTA_LIMIT - bonus_quota_used
+
+    if bonus_quota_available <= 0:
+        await client.send_message(
+            chat_id, 
+            "⚠ You have used all your bonus quota. Please wait for it to reset or upgrade your plan."
+        )
+        return
+
     video = video_cache.pop()
     try:
         message = await client.get_messages(CHANNEL_ID, video["message_id"])
