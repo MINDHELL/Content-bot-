@@ -351,7 +351,12 @@ async def send_random_video(client, chat_id):
 
     # OWNER override
     if chat_id == OWNER_ID:
-        user = {"videos_sent": 0, "quota_reset_time": time.time(), "bonus_quota_used": 0, "premium_expiry": time.time() + 86400}
+        user = {
+            "videos_sent": 0,
+            "quota_reset_time": time.time(),
+            "bonus_quota_used": 0,
+            "premium_expiry": time.time() + 86400
+        }
     else:
         user = users_collection.find_one({"id": chat_id})
 
@@ -365,7 +370,7 @@ async def send_random_video(client, chat_id):
     videos_sent = user.get("videos_sent", 0)
     bonus_used = user.get("bonus_quota_used", 0)
 
-    # Reset quota if time passed
+    # Reset quota if needed
     if now >= quota_reset_time:
         users_collection.update_one(
             {"id": chat_id},
@@ -379,22 +384,22 @@ async def send_random_video(client, chat_id):
         )
         videos_sent = 0
         bonus_used = 0
-        quota_reset_time = now + 86400
 
-    # Quota checks
-    allow_regular = videos_sent < VIDEO_LIMIT
-    allow_bonus = is_premium and bonus_used < BONUS_QUOTA_LIMIT
+    # Quota check and decision
+    if videos_sent >= VIDEO_LIMIT:
+        if is_premium and bonus_used < BONUS_QUOTA_LIMIT:
+            users_collection.update_one({"id": chat_id}, {"$inc": {"bonus_quota_used": 1}})
+        else:
+            reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
+            await client.send_message(
+                chat_id,
+                f"⚠️ You have reached your video limit of {VIDEO_LIMIT}.\nYour quota will reset at: {reset_str}."
+            )
+            return
+    else:
+        users_collection.update_one({"id": chat_id}, {"$inc": {"videos_sent": 1}})
 
-    if not allow_regular and not allow_bonus:
-        reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
-        await client.send_message(
-            chat_id,
-            f"⚠️ You have reached your video limit of {VIDEO_LIMIT} (+{BONUS_QUOTA_LIMIT} bonus if premium).\n"
-            f"Quota resets at: {reset_str}."
-        )
-        return
-
-    # Pop video and send
+    # Send video
     video = video_cache.pop()
     try:
         message = await client.get_messages(CHANNEL_ID, video["message_id"])
@@ -406,14 +411,6 @@ async def send_random_video(client, chat_id):
                 protect_content=True
             )
 
-            # Update usage
-            if chat_id != OWNER_ID:
-                if allow_regular:
-                    users_collection.update_one({"id": chat_id}, {"$inc": {"videos_sent": 1}})
-                elif allow_bonus:
-                    users_collection.update_one({"id": chat_id}, {"$inc": {"bonus_quota_used": 1}})
-
-            # Auto-delete
             if AUTO_DELETE_TIME > 0:
                 await asyncio.sleep(AUTO_DELETE_TIME)
                 await sent_msg.delete()
