@@ -365,37 +365,36 @@ async def send_random_video(client, chat_id):
     videos_sent = user.get("videos_sent", 0)
     bonus_used = user.get("bonus_quota_used", 0)
 
-    # Reset quota if needed
+    # Reset quota if time passed
     if now >= quota_reset_time:
-        print(f"[DEBUG] Quota reset triggered for user {chat_id}")
         users_collection.update_one(
             {"id": chat_id},
-            {"$set": {
-                "videos_sent": 0,
-                "bonus_quota_used": 0,
-                "quota_reset_time": now + 86400
-            }}
+            {
+                "$set": {
+                    "videos_sent": 0,
+                    "bonus_quota_used": 0,
+                    "quota_reset_time": now + 86400
+                }
+            }
         )
         videos_sent = 0
         bonus_used = 0
         quota_reset_time = now + 86400
 
-    # Decide if user is allowed to get a video
+    # Quota checks
     allow_regular = videos_sent < VIDEO_LIMIT
     allow_bonus = is_premium and bonus_used < BONUS_QUOTA_LIMIT
-
-    # Debug log
-    print(f"[DEBUG] User {chat_id} - is_premium: {is_premium}, videos_sent: {videos_sent}, bonus_used: {bonus_used}, now: {now}, reset_time: {quota_reset_time}")
 
     if not allow_regular and not allow_bonus:
         reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
         await client.send_message(
             chat_id,
-            f"⚠️ You have reached your video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_str}."
+            f"⚠️ You have reached your video limit of {VIDEO_LIMIT} (+{BONUS_QUOTA_LIMIT} bonus if premium).\n"
+            f"Quota resets at: {reset_str}."
         )
         return
 
-    # Send video
+    # Pop video and send
     video = video_cache.pop()
     try:
         message = await client.get_messages(CHANNEL_ID, video["message_id"])
@@ -407,15 +406,14 @@ async def send_random_video(client, chat_id):
                 protect_content=True
             )
 
+            # Update usage
             if chat_id != OWNER_ID:
-                update_fields = {}
                 if allow_regular:
-                    update_fields["videos_sent"] = videos_sent + 1
+                    users_collection.update_one({"id": chat_id}, {"$inc": {"videos_sent": 1}})
                 elif allow_bonus:
-                    update_fields["bonus_quota_used"] = bonus_used + 1
+                    users_collection.update_one({"id": chat_id}, {"$inc": {"bonus_quota_used": 1}})
 
-                users_collection.update_one({"id": chat_id}, {"$set": update_fields})
-
+            # Auto-delete
             if AUTO_DELETE_TIME > 0:
                 await asyncio.sleep(AUTO_DELETE_TIME)
                 await sent_msg.delete()
