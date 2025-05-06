@@ -384,12 +384,13 @@ async def send_random_video(client, chat_id):
         bonus_used = 0
         quota_reset_time = now + 86400
 
-    allow_regular = videos_sent < VIDEO_LIMIT
-    allow_bonus = is_premium and bonus_used < BONUS_QUOTA_LIMIT
-
-    if not allow_regular and allow_bonus:
-        pass  # allow bonus access
-    elif not allow_regular and not allow_bonus:
+    # Quota check
+    update_field = None
+    if videos_sent < VIDEO_LIMIT:
+        update_field = {"videos_sent": videos_sent + 1}
+    elif is_premium and bonus_used < BONUS_QUOTA_LIMIT:
+        update_field = {"bonus_quota_used": bonus_used + 1}
+    else:
         reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
         await client.send_message(
             chat_id,
@@ -410,13 +411,7 @@ async def send_random_video(client, chat_id):
             )
 
             if chat_id != OWNER_ID:
-                update_fields = {}
-                if allow_regular:
-                    update_fields["videos_sent"] = videos_sent + 1
-                elif allow_bonus:
-                    update_fields["bonus_quota_used"] = bonus_used + 1
-
-                users_collection.update_one({"id": chat_id}, {"$set": update_fields})
+                users_collection.update_one({"id": chat_id}, {"$set": update_field})
 
             if AUTO_DELETE_TIME > 0:
                 await asyncio.sleep(AUTO_DELETE_TIME)
@@ -425,7 +420,6 @@ async def send_random_video(client, chat_id):
     except FloodWait as e:
         await asyncio.sleep(e.value)
         await send_random_video(client, chat_id)
-
 
 # ✅ **Quota Status**
 @bot.on_message(filters.command("quota"))
