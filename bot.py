@@ -100,6 +100,49 @@ async def list_premium_users():
     premium_users = users_collection.find({"premium_expiry": {"$gt": time.time()}})
     return [(user["id"], user["premium_expiry"]) for user in premium_users]
 
+# ✅ **Commands**
+
+@bot.on_message(filters.command("add_premium") & filters.user(OWNER_ID))
+async def add_premium_command(client, message):
+    try:
+        _, user_id, days = message.text.split()
+        user_id = int(user_id)
+        days = int(days)
+
+        await assign_premium(user_id, days)
+        await message.reply_text(f"✅ **Assigned premium to user {user_id} for {days} days!**")
+    except (ValueError, IndexError):
+        await message.reply_text("⚠ Usage: `/add_premium <user_id> <days>`")
+
+@bot.on_message(filters.command("delete_premium") & filters.user(OWNER_ID))
+async def delete_premium_command(client, message):
+    try:
+        _, user_id = message.text.split()
+        user_id = int(user_id)
+
+        await remove_premium(user_id)
+        await message.reply_text(f"✅ **Removed premium from user {user_id}!**")
+    except (ValueError, IndexError):
+        await message.reply_text("⚠ Usage: `/delete_premium <user_id>`")
+
+@bot.on_message(filters.command("listallpremium") & filters.user(OWNER_ID))
+async def list_all_premium_command(client, message):
+    premium_users = await list_premium_users()
+    if premium_users:
+        premium_list = "\n".join([f"User ID: {user_id}, Premium Expiry: {datetime.datetime.fromtimestamp(expiry_time).strftime('%Y-%m-%d %H:%M:%S')}" for user_id, expiry_time in premium_users])
+        await message.reply_text(f"📋 **List of Premium Users**:\n\n{premium_list}")
+    else:
+        await message.reply_text("⚠ No premium users found.")
+
+@bot.on_message(filters.command("check_premium"))
+async def check_premium_command(client, message):
+    user_id = message.from_user.id
+    is_user_premium = await is_premium(user_id)
+    if is_user_premium:
+        await message.reply_text("🎉 **You are a premium user!**")
+    else:
+        await message.reply_text("🚫 **You are not a premium user.**")
+
 # ✅ **Quota Management**
 async def get_user_quota(user_id):
     user = users_collection.find_one({"id": user_id})
