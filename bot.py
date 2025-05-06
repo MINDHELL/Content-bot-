@@ -40,6 +40,66 @@ collection = db["videos"]
 users_collection = db["users"]
 settings_collection = db["settings"]
 
+# 🔰 Default Fields for User Data (New users)
+DEFAULT_FIELDS = {
+    "premium_expiry": 0,  # Timestamp when premium access expires
+    "bonus_quota_used": 0,  # Tracks bonus videos accessed
+    "videos_sent": 0,  # Regular videos sent
+    "quota_reset_time": time.time() + 86400,  # Reset time for quota (default to 24 hours from now)
+    "last_access_time": time.time(),  # Last time user accessed bot
+}
+
+# 🔰 Bonus Quota Limit
+BONUS_QUOTA_LIMIT = 5  # Number of bonus videos a user can access per day
+
+# 🔰 Logger Initialization
+logger = logging.getLogger("bot_logger")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# 🔰 Bot Functionality: Check if User Exists or Create Default Data
+def get_user_data(user_id):
+    user = users_collection.find_one({"id": user_id})
+    if user is None:
+        # Create a new user entry with default fields
+        users_collection.insert_one({
+            "id": user_id,
+            **DEFAULT_FIELDS
+        })
+        user = users_collection.find_one({"id": user_id})
+    return user
+
+# 🔰 Check Premium Status
+def check_premium_status(user):
+    current_time = time.time()
+    return user.get('premium_expiry', 0) > current_time
+
+# 🔰 Check Bonus Quota
+def check_bonus_quota(user):
+    return user['bonus_quota_used'] < BONUS_QUOTA_LIMIT
+
+# 🔰 Reset User Quota if Necessary
+def reset_quota_if_needed(user_id):
+    user = get_user_data(user_id)
+    current_time = time.time()
+    
+    if current_time >= user.get('quota_reset_time', time.time()):
+        # Reset the user's quota
+        users_collection.update_one(
+            {"id": user_id},
+            {
+                "$set": {
+                    "videos_sent": 0,
+                    "bonus_quota_used": 0,
+                    "quota_reset_time": current_time + 86400  # Set reset time to 24 hours later
+                }
+            }
+        )
+        logger.info(f"Quota reset for user {user_id}")
+
 # ✅ **Cache Optimization**
 video_cache = []
 last_cache_time = 0
