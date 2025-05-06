@@ -293,34 +293,38 @@ async def send_random_video(client, chat_id):
         await client.send_message(chat_id, "⚠ User not found. Please start the bot first.")
         return
 
-    # Check if user has exceeded regular video limit
-    if user["videos_sent"] >= VIDEO_LIMIT and time.time() < user["quota_reset_time"]:
-        reset_time = datetime.datetime.fromtimestamp(user["quota_reset_time"]).strftime("%Y-%m-%d %H:%M:%S")
-        # Notify the user that their regular video quota is full but they can still use bonus videos
-        if user.get("premium_expiry", 0) > time.time():  # Check if the user is premium
-            await client.send_message(
-                chat_id,
-                f"⚠️ You have reached your regular video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_time}. However, you still have {BONUS_QUOTA_LIMIT - user['bonus_quota_used']} bonus videos left!",
-            )
-        else:
-            await client.send_message(
-                chat_id,
-                f"⚠️ You have reached your video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_time}.",
-            )
-        return
+    now = time.time()
+    is_premium = user.get("premium_expiry", 0) > now
+    videos_sent = user.get("videos_sent", 0)
+    bonus_used = user.get("bonus_quota_used", 0)
+    reset_time = user.get("quota_reset_time", now)
 
-    # Check if bonus quota is available for premium users
-    bonus_quota_used = user.get("bonus_quota_used", 0)
-    bonus_quota_available = BONUS_QUOTA_LIMIT - bonus_quota_used
+    # Reset quota if expired
+    if now >= reset_time:
+        users_collection.update_one(
+            {"id": chat_id},
+            {"$set": {
+                "videos_sent": 0,
+                "bonus_quota_used": 0,
+                "quota_reset_time": now + 86400
+            }}
+        )
+        videos_sent = 0
+        bonus_used = 0
+        reset_time = now + 86400
 
-    if bonus_quota_available <= 0:
+    can_use_regular = videos_sent < VIDEO_LIMIT
+    can_use_bonus = is_premium and bonus_used < BONUS_QUOTA_LIMIT
+
+    if not can_use_regular and not can_use_bonus:
+        reset_str = datetime.datetime.fromtimestamp(reset_time).strftime("%Y-%m-%d %H:%M:%S")
         await client.send_message(
-            chat_id, 
-            "⚠ You have used all your bonus quota. Please wait for it to reset or upgrade your plan."
+            chat_id,
+            f"⚠️ You have reached your video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_str}."
         )
         return
 
-    # Proceed with sending a random video
+    # Send video
     video = video_cache.pop()
     try:
         message = await client.get_messages(CHANNEL_ID, video["message_id"])
@@ -329,8 +333,12 @@ async def send_random_video(client, chat_id):
                 chat_id, video=message.video.file_id, caption="Thanks 😊", protect_content=True
             )
 
-            if chat_id != OWNER_ID:  # Only update quota for non-owner users
-                users_collection.update_one({"id": chat_id}, {"$inc": {"videos_sent": 1, "bonus_quota_used": 1}})
+            # Update the correct quota
+            if chat_id != OWNER_ID:
+                if can_use_regular:
+                    users_collection.update_one({"id": chat_id}, {"$inc": {"videos_sent": 1}})
+                else:
+                    users_collection.update_one({"id": chat_id}, {"$inc": {"bonus_quota_used": 1}})
 
             if AUTO_DELETE_TIME > 0:
                 await asyncio.sleep(AUTO_DELETE_TIME)
@@ -344,46 +352,52 @@ async def send_random_video(client, chat_id):
 # ✅ **Quota Status**
 @bot.on_message(filters.command("quota"))
 async def quota_status(client, message):
-    user_id = message.from_user.id
-    if user_id == OWNER_ID:
-        await message.reply_text("✅ **You are the owner and have unlimited quota!**")
-        return
+    chat_id = message.chat.id
+    user = users_collection.find_one({"id": chat_id})
 
-    user = users_collection.find_one({"id": user_id})
     if not user:
-        await message.reply_text("⚠️ User not found! Please start the bot first.")
+        await message.reply("⚠ User not found. Please start the bot first.")
         return
 
-    premium_status = await is_premium(user_id)
-    expiry_date = datetime.datetime.fromtimestamp(user["premium_expiry"]).strftime('%Y-%m-%d %H:%M:%S') if premium_status else "N/A"
-    
-    current_time = time.time()
-    if current_time > user["quota_reset_time"]:
-        new_reset_time = current_time + settings_collection.find_one({"_id": "quota_settings"})["quota_reset_time"]
-        users_collection.update_one({"id": user_id}, {"$set": {"quota_reset_time": new_reset_time, "videos_sent": 0}})
-        user["videos_sent"] = 0
-        user["quota_reset_time"] = new_reset_time
+    now = time.time()
+    is_premium = user.get("premium_expiry", 0) > now
+    reset_time = user.get("quota_reset_time", now)
 
-    reset_time = datetime.datetime.fromtimestamp(user["quota_reset_time"]).strftime("%Y-%m-%d %H:%M:%S")
-    time_left = max(0, user["quota_reset_time"] - current_time)
-    videos_left = max(0, VIDEO_LIMIT - user["videos_sent"])
-    
-    message_text = (
-        f"📊 **Your Quota Status:**\n\n"
-        f"📅 **Quota Reset Time**: {reset_time}\n"
-        f"🎥 **Videos Sent**: {user['videos_sent']}/{VIDEO_LIMIT}\n"
-        f"⏳ **Time Until Reset**: {str(datetime.timedelta(seconds=int(time_left)))}\n"
-        f"🕒 **Videos Left**: {videos_left}\n"
-        f"🟢 **Status**: {'Premium' if premium_status else 'Free'}\n"
-        f"📅 **Premium Expiry**: {expiry_date}\n"
+    # Reset quota if expired
+    if now >= reset_time:
+        users_collection.update_one(
+            {"id": chat_id},
+            {"$set": {
+                "videos_sent": 0,
+                "bonus_quota_used": 0,
+                "quota_reset_time": now + 86400
+            }}
+        )
+        user["videos_sent"] = 0
+        user["bonus_quota_used"] = 0
+        reset_time = now + 86400
+
+    videos_sent = user.get("videos_sent", 0)
+    bonus_used = user.get("bonus_quota_used", 0)
+
+    time_left = str(datetime.timedelta(seconds=int(reset_time - now)))
+    videos_left = max(VIDEO_LIMIT - videos_sent, 0)
+    bonus_left = BONUS_QUOTA_LIMIT - bonus_used if is_premium else 0
+
+    text = (
+        f"📊 <b>Your Quota Status:</b>\n\n"
+        f"📅 Quota Reset Time: {datetime.datetime.fromtimestamp(reset_time).strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"🎥 Videos Sent: {videos_sent}/{VIDEO_LIMIT}\n"
+        f"⏳ Time Until Reset: {time_left}\n"
+        f"🕒 Videos Left: {videos_left}\n"
+        f"🟢 Status: {'Premium' if is_premium else 'Free'}"
     )
 
-    if premium_status:
-        bonus_used = user.get("bonus_quota_used", 0)
-        bonus_left = BONUS_QUOTA_LIMIT - bonus_used
-        message_text += f"🎉 **Bonus Quota Left**: {bonus_left} videos\n"
+    if is_premium:
+        text += f"\n📅 Premium Expiry: {datetime.datetime.fromtimestamp(user['premium_expiry']).strftime('%Y-%m-%d %H:%M:%S')}\n"
+        text += f"🎉 Bonus Quota Left: {bonus_left} videos"
 
-    await message.reply_text(message_text)
+    await message.reply(text, parse_mode="html")
 
 # ✅ **/myplan Command**
 @bot.on_message(filters.command("myplan"))
