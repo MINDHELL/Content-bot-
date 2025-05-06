@@ -367,33 +367,34 @@ async def send_random_video(client, chat_id):
 
     # Reset quota if needed
     if now >= quota_reset_time:
-        videos_sent = 0
-        bonus_used = 0
-        quota_reset_time = now + 86400
+        print(f"[DEBUG] Quota reset triggered for user {chat_id}")
         users_collection.update_one(
             {"id": chat_id},
             {"$set": {
                 "videos_sent": 0,
                 "bonus_quota_used": 0,
-                "quota_reset_time": quota_reset_time
+                "quota_reset_time": now + 86400
             }}
         )
+        videos_sent = 0
+        bonus_used = 0
+        quota_reset_time = now + 86400
 
     # Decide if user is allowed to get a video
     allow_regular = videos_sent < VIDEO_LIMIT
     allow_bonus = is_premium and bonus_used < BONUS_QUOTA_LIMIT
 
-    if not allow_regular and allow_bonus:
-        pass
+    # Debug log
+    print(f"[DEBUG] User {chat_id} - is_premium: {is_premium}, videos_sent: {videos_sent}, bonus_used: {bonus_used}, now: {now}, reset_time: {quota_reset_time}")
 
-        if not allow_regular and not allow_bonus:
-            reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
-            await client.send_message(
-                chat_id,
-                f"⚠️ You have reached your quota. Your limit will reset at {reset_str}."
-            )
-            return
-            
+    if not allow_regular and not allow_bonus:
+        reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
+        await client.send_message(
+            chat_id,
+            f"⚠️ You have reached your video limit of {VIDEO_LIMIT} videos. Your quota will reset at {reset_str}."
+        )
+        return
+
     # Send video
     video = video_cache.pop()
     try:
@@ -406,7 +407,6 @@ async def send_random_video(client, chat_id):
                 protect_content=True
             )
 
-            # Update quota only for non-owners
             if chat_id != OWNER_ID:
                 update_fields = {}
                 if allow_regular:
@@ -423,6 +423,7 @@ async def send_random_video(client, chat_id):
     except FloodWait as e:
         await asyncio.sleep(e.value)
         await send_random_video(client, chat_id)
+
 
 # ✅ **Quota Status**
 @bot.on_message(filters.command("quota"))
