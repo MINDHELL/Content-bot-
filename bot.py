@@ -349,7 +349,6 @@ async def send_random_video(client, chat_id):
         await client.send_message(chat_id, "⚠ No videos available. Use /index first!")
         return
 
-    # OWNER override
     if chat_id == OWNER_ID:
         user = {
             "videos_sent": 0,
@@ -370,7 +369,7 @@ async def send_random_video(client, chat_id):
     videos_sent = user.get("videos_sent", 0)
     bonus_used = user.get("bonus_quota_used", 0)
 
-    # Reset quota if needed
+    # Reset quota if time passed
     if now >= quota_reset_time:
         users_collection.update_one(
             {"id": chat_id},
@@ -384,13 +383,10 @@ async def send_random_video(client, chat_id):
         bonus_used = 0
         quota_reset_time = now + 86400
 
-    # Quota check
-    update_field = None
-    if videos_sent < VIDEO_LIMIT:
-        update_field = {"videos_sent": videos_sent + 1}
-    elif is_premium and bonus_used < BONUS_QUOTA_LIMIT:
-        update_field = {"bonus_quota_used": bonus_used + 1}
-    else:
+    allow_regular = videos_sent < VIDEO_LIMIT
+    allow_bonus = is_premium and bonus_used < BONUS_QUOTA_LIMIT
+
+    if not allow_regular and not allow_bonus:
         reset_str = datetime.datetime.fromtimestamp(quota_reset_time).strftime("%Y-%m-%d %H:%M:%S")
         await client.send_message(
             chat_id,
@@ -398,7 +394,6 @@ async def send_random_video(client, chat_id):
         )
         return
 
-    # Send video
     video = video_cache.pop()
     try:
         message = await client.get_messages(CHANNEL_ID, video["message_id"])
@@ -411,7 +406,14 @@ async def send_random_video(client, chat_id):
             )
 
             if chat_id != OWNER_ID:
-                users_collection.update_one({"id": chat_id}, {"$set": update_field})
+                update_fields = {}
+                if allow_regular:
+                    update_fields["videos_sent"] = videos_sent + 1
+                if not allow_regular and allow_bonus:
+                    update_fields["bonus_quota_used"] = bonus_used + 1
+
+                if update_fields:
+                    users_collection.update_one({"id": chat_id}, {"$set": update_fields})
 
             if AUTO_DELETE_TIME > 0:
                 await asyncio.sleep(AUTO_DELETE_TIME)
